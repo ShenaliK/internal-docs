@@ -1,22 +1,16 @@
 import DocsLayout from "@/components/layout/DocsLayout";
 import CreateProjectDialog from "@/features/projects/CreateProjectDialog";
 import { listProjects } from "@/server/services/project-service";
-import type { NavigationSection } from "@/features/navigation/navigation-types";
+import { getProjectNavigation } from "@/server/services/navigation-service";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const projects = await listProjects();
-
-  const navigation: NavigationSection[] = [
-    {
-      title: "Documentation",
-      items: [{ title: "Overview", href: "/" }],
-    },
-  ];
+  const projectNavigation = await getProjectNavigation();
 
   return (
-    <DocsLayout navigation={navigation}>
+    <DocsLayout projects={projectNavigation}>
       <div className="mx-auto max-w-5xl">
         <p className="mb-3 text-sm font-medium text-indigo-600">
           INTERNAL DOCUMENTATION
