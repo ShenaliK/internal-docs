@@ -1,19 +1,23 @@
 import DocsLayout from "@/components/layout/DocsLayout";
-import type {
-  NavigationSection,
-} from "@/features/navigation/navigation-types";
+import CreateProjectDialog from "@/features/projects/CreateProjectDialog";
+import { listProjects } from "@/server/services/project-service";
+import type { NavigationSection } from "@/features/navigation/navigation-types";
 
-const navigation: NavigationSection[] = [
-  {
-    title: "Documentation",
-    items: [{ title: "Overview", href: "/" }],
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const projects = await listProjects();
+
+  const navigation: NavigationSection[] = [
+    {
+      title: "Documentation",
+      items: [{ title: "Overview", href: "/" }],
+    },
+  ];
+
   return (
     <DocsLayout navigation={navigation}>
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <p className="mb-3 text-sm font-medium text-indigo-600">
           INTERNAL DOCUMENTATION
         </p>
@@ -27,17 +31,43 @@ export default function HomePage() {
           APIs, and technical documentation.
         </p>
 
-        <section className="rounded-xl border p-6">
-          <h2 className="mb-2 text-xl font-semibold">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">
             Your projects
           </h2>
 
-          <p className="text-sm text-muted-foreground">
-            No projects have been added yet.
-            Once project management and document uploads
-            are implemented, your projects will appear here.
-          </p>
-        </section>
+          <CreateProjectDialog />
+        </div>
+
+        {projects.length === 0 ? (
+          <div className="rounded-xl border p-8 text-center">
+            <p className="text-muted-foreground">
+              No projects yet. Create your first project to get started.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="rounded-xl border p-6"
+              >
+                <h3 className="mb-2 text-lg font-semibold">
+                  {project.name}
+                </h3>
+
+                <p className="text-sm text-muted-foreground">
+                  {project.description || "No description provided."}
+                </p>
+
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Created:{" "}
+                  {new Date(project.createdAt).toLocaleDateString("en-GB")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </DocsLayout>
   );
