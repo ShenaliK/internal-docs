@@ -11,10 +11,18 @@ export default function Header() {
         </span>
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-5">
+        <Link
+          href="/"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Home
+        </Link>
+
         <span className="hidden text-sm text-muted-foreground sm:inline">
           Documentation Portal
         </span>
+
         <Search className="h-5 w-5 text-muted-foreground" />
       </div>
     </header>
