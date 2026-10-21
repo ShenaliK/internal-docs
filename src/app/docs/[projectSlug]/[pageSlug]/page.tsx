@@ -55,7 +55,7 @@ export default async function DocumentationPage({
           {page.title}
         </div>
 
-        <div className="flex items-start gap-12">
+        <div className="flex items-stretch gap-8">
           <div className="min-w-0 flex-1">
             <DocumentViewer page={page} />
           </div>

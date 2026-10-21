@@ -15,6 +15,16 @@ function createSlug(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
+function getHeadingText(node: MarkdocNode): string {
+  if (node.type === "text") {
+    return String(node.attributes.content ?? "");
+  }
+
+  return node.children
+    .map((child) => getHeadingText(child))
+    .join("");
+}
+
 export default function DocumentViewer({
   page,
 }: DocumentViewerProps) {
@@ -28,14 +38,7 @@ export default function DocumentViewer({
         ...Markdoc.nodes.heading,
         transform(node: MarkdocNode, config: MarkdocConfig) {
           const children = node.transformChildren(config);
-          const text = node.children
-            .map((child) => {
-              if (child.type === "text") {
-                return String(child.attributes.content ?? "");
-              }
-              return "";
-            })
-            .join("");
+          const text = getHeadingText(node);
 
           const base = createSlug(text) || "section";
           const count = (headingCounts.get(base) ?? 0) + 1;
