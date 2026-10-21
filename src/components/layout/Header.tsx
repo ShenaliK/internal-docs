@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import DocumentationSearchDialog from "@/components/search/DocumentationSearchDialog";
 
 export default function Header() {
   return (
@@ -23,7 +24,7 @@ export default function Header() {
           Documentation Portal
         </span>
 
-        <Search className="h-5 w-5 text-muted-foreground" />
+        <DocumentationSearchDialog />
       </div>
     </header>
   );
