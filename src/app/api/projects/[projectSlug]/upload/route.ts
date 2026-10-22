@@ -44,7 +44,9 @@ export async function POST(
       file
     );
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(result, {
+      status: result.status === "pending_review" ? 202 : 201,
+    });
   } catch (error) {
     if (error instanceof Error) {
       const isValidationError =
