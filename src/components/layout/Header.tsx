@@ -1,6 +1,9 @@
+
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
+
 import DocumentationSearchDialog from "@/components/search/DocumentationSearchDialog";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default function Header() {
   return (
@@ -25,6 +28,8 @@ export default function Header() {
         </span>
 
         <DocumentationSearchDialog />
+
+        <ThemeToggle />
       </div>
     </header>
   );
