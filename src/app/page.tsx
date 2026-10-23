@@ -1,6 +1,6 @@
 import DocsLayout from "@/components/layout/DocsLayout";
 import CreateProjectDialog from "@/features/projects/CreateProjectDialog";
-import UploadDocumentationDialog from "@/features/projects/UploadDocumentationDialog";
+import PendingReviews from "@/features/projects/PendingReviews";
 import { listProjects } from "@/server/services/project-service";
 import { getProjectNavigation } from "@/server/services/navigation-service";
 
@@ -59,8 +59,9 @@ export default async function HomePage() {
                   Created:{" "}
                   {new Date(project.createdAt).toLocaleDateString("en-GB")}
                 </p>
+
                 <div className="mt-5 border-t pt-4">
-                  <UploadDocumentationDialog
+                  <PendingReviews
                     projectSlug={project.slug}
                     projectName={project.name}
                   />

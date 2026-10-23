@@ -1,9 +1,9 @@
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
+
 import MarkdownDiffViewer from "@/components/docs/MarkdownDiffViewer";
 
 import {
@@ -22,6 +22,9 @@ import { Input } from "@/components/ui/input";
 interface UploadDocumentationDialogProps {
   projectSlug: string;
   projectName: string;
+  proposalId?: string | null;
+  onApproved?: () => void;
+  onCloseReview?: () => void;
 }
 
 interface DocumentProposal {
@@ -33,11 +36,38 @@ interface DocumentProposal {
   proposedMarkdown: string;
 }
 
-type DialogStep = "upload" | "review";
+type DialogStep = "upload" | "loading" | "review";
+
+async function fetchProposal(
+  projectSlug: string,
+  proposalId: string,
+  signal?: AbortSignal
+): Promise<DocumentProposal> {
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(projectSlug)}/proposals/${encodeURIComponent(proposalId)}`,
+    {
+      cache: "no-store",
+      signal,
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      result?.error || "Unable to load the saved proposal."
+    );
+  }
+
+  return result as DocumentProposal;
+}
 
 export default function UploadDocumentationDialog({
   projectSlug,
   projectName,
+  proposalId,
+  onApproved,
+  onCloseReview,
 }: UploadDocumentationDialogProps) {
   const router = useRouter();
 
@@ -47,13 +77,59 @@ export default function UploadDocumentationDialog({
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState("");
   const [step, setStep] = useState<DialogStep>("upload");
-  const [proposal, setProposal] = useState<DocumentProposal | null>(null);
+
+  const [proposal, setProposal] =
+    useState<DocumentProposal | null>(null);
+
+  const displayStep: DialogStep =
+    proposalId && proposal?.id !== proposalId
+      ? "loading"
+      : step;
+
+  useEffect(() => {
+    if (!proposalId) return;
+
+    const controller = new AbortController();
+
+    fetchProposal(projectSlug, proposalId, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+
+        setProposal(result);
+        setStep("review");
+        setError("");
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load the saved proposal."
+        );
+
+        setStep("loading");
+      });
+
+    return () => controller.abort();
+  }, [projectSlug, proposalId]);
 
   function resetDialog() {
     setFile(null);
     setError("");
     setStep("upload");
     setProposal(null);
+  }
+
+  function closeDialog() {
+    if (uploading || applying) return;
+
+    setOpen(false);
+    resetDialog();
+
+    if (proposalId) {
+      onCloseReview?.();
+    }
   }
 
   async function handleUpload() {
@@ -81,37 +157,31 @@ export default function UploadDocumentationDialog({
 
       if (!response.ok) {
         throw new Error(
-          result?.error || "Failed to upload documentation."
+          result?.error ||
+            "Failed to upload documentation."
         );
       }
 
       if (result.status === "pending_review") {
-        const proposalResponse = await fetch(
-          `/api/projects/${encodeURIComponent(projectSlug)}/proposals/${encodeURIComponent(result.proposalId)}`
+        setStep("loading");
+
+        const savedProposal = await fetchProposal(
+          projectSlug,
+          result.proposalId
         );
 
-        if (!proposalResponse.ok) {
-          const proposalError = await proposalResponse
-            .json()
-            .catch(() => null);
-
-          throw new Error(
-            proposalError?.error ||
-              "Unable to load the documentation proposal."
-          );
-        }
-
-        const proposalData: DocumentProposal =
-          await proposalResponse.json();
-
-        setProposal(proposalData);
+        setProposal(savedProposal);
         setStep("review");
+
+        onApproved?.();
         return;
       }
 
       if (result.status === "created") {
         setOpen(false);
         resetDialog();
+
+        onApproved?.();
         router.refresh();
         return;
       }
@@ -119,7 +189,9 @@ export default function UploadDocumentationDialog({
       throw new Error("Unexpected upload response.");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Upload failed."
+        err instanceof Error
+          ? err.message
+          : "Upload failed."
       );
     } finally {
       setUploading(false);
@@ -155,6 +227,10 @@ export default function UploadDocumentationDialog({
 
       setOpen(false);
       resetDialog();
+
+      onCloseReview?.();
+      onApproved?.();
+
       router.refresh();
     } catch (err) {
       setError(
@@ -169,14 +245,12 @@ export default function UploadDocumentationDialog({
 
   return (
     <Dialog
-      open={open}
+      open={open || Boolean(proposalId)}
       onOpenChange={(nextOpen) => {
-        if (uploading || applying) return;
-
-        setOpen(nextOpen);
-
         if (!nextOpen) {
-          resetDialog();
+          closeDialog();
+        } else {
+          setOpen(true);
         }
       }}
     >
@@ -191,26 +265,30 @@ export default function UploadDocumentationDialog({
 
       <DialogContent
         className={
-          step === "review"
+          displayStep === "review"
             ? "w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto"
             : undefined
         }
       >
         <DialogHeader>
           <DialogTitle>
-            {step === "review"
+            {displayStep === "review"
               ? "Review Documentation Update"
-              : "Upload Documentation"}
+              : displayStep === "loading"
+                ? "Loading Proposal"
+                : "Upload Documentation"}
           </DialogTitle>
 
           <DialogDescription>
-            {step === "review"
-              ? `Review the proposed documentation changes for ${projectName}. No changes have been applied yet.`
-              : `Upload a Markdown file for ${projectName}. If documentation already exists, you will review the proposed update before applying it.`}
+            {displayStep === "review"
+              ? `Review the proposed changes for ${projectName}. Nothing has been applied yet.`
+              : displayStep === "loading"
+                ? `Loading the saved documentation proposal for ${projectName}.`
+                : `Upload a Markdown file for ${projectName}. Existing documentation updates require approval.`}
           </DialogDescription>
         </DialogHeader>
 
-        {step === "upload" ? (
+        {displayStep === "upload" ? (
           <div className="space-y-3 py-4">
             <Input
               type="file"
@@ -235,6 +313,21 @@ export default function UploadDocumentationDialog({
               </p>
             )}
           </div>
+        ) : displayStep === "loading" ? (
+          <div className="py-6">
+            {error ? (
+              <p
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {error}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Loading saved changes...
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-4 py-4">
             {proposal && (
@@ -256,15 +349,12 @@ export default function UploadDocumentationDialog({
         )}
 
         <DialogFooter>
-          {step === "upload" ? (
+          {displayStep === "upload" ? (
             <>
               <Button
                 variant="outline"
                 disabled={uploading}
-                onClick={() => {
-                  setOpen(false);
-                  resetDialog();
-                }}
+                onClick={closeDialog}
               >
                 Cancel
               </Button>
@@ -276,15 +366,19 @@ export default function UploadDocumentationDialog({
                 {uploading ? "Uploading..." : "Upload"}
               </Button>
             </>
+          ) : displayStep === "loading" ? (
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+            >
+              Close
+            </Button>
           ) : (
             <>
               <Button
                 variant="outline"
                 disabled={applying}
-                onClick={() => {
-                  setOpen(false);
-                  resetDialog();
-                }}
+                onClick={closeDialog}
               >
                 Close Preview
               </Button>
@@ -293,7 +387,9 @@ export default function UploadDocumentationDialog({
                 disabled={!proposal || applying}
                 onClick={handleApplyUpdates}
               >
-                {applying ? "Applying..." : "Apply Updates"}
+                {applying
+                  ? "Applying..."
+                  : "Apply Updates"}
               </Button>
             </>
           )}
